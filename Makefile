@@ -375,9 +375,18 @@ else
 HOSTCC	= gcc
 HOSTCXX	= g++
 endif
-HOSTCFLAGS   := -Wall -Wmissing-prototypes -Wstrict-prototypes -Ofast \
+HOSTCFLAGS   := -Wall -Wmissing-prototypes -Wstrict-prototypes \
 		-fomit-frame-pointer -std=gnu89 $(HOST_LFS_CFLAGS)
-HOSTCXXFLAGS := -Ofast $(HOST_LFS_CFLAGS)
+HOSTCXXFLAGS := $(HOST_LFS_CFLAGS)
+
+ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
+HOSTCFLAGS   += -Oz
+HOSTCXXFLAGS += -Oz
+else
+HOSTCFLAGS   += -Ofast
+HOSTCXXFLAGS += -Ofast
+endif
+
 HOSTLDFLAGS  := $(HOST_LFS_LDFLAGS)
 HOST_LOADLIBES := $(HOST_LFS_LIBS)
 
@@ -728,11 +737,17 @@ KBUILD_CFLAGS	+= $(call cc-disable-warning, int-in-bool-context)
 KBUILD_CFLAGS	+= $(call cc-disable-warning, address-of-packed-member)
 KBUILD_CFLAGS	+= $(call cc-disable-warning, attribute-alias)
 
+ifeq ($(cc-name),clang)
+KBUILD_CFLAGS += -mcpu=cortex-a76+crc+crypto -mtune=cortex-a76 -march=armv8.2-a+crc+crypto+lse+rdm+rcpc+dotprod
+KBUILD_AFLAGS += -mcpu=cortex-a76+crc+crypto -mtune=cortex-a76 -march=armv8.2-a+crc+crypto+lse+rdm+rcpc+dotprod
+endif
+
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
-KBUILD_CFLAGS   += -Oz
+KBUILD_CFLAGS += -Oz
+KBUILD_AFLAGS += -Oz
 else
-KBUILD_CFLAGS   += -mcpu=cortex-a76+crc+crypto -mtune=cortex-a76 -march=armv8.2-a+crc+crypto+lse+rdm+rcpc+dotprod -Ofast -funroll-loops
-KBUILD_AFLAGS   += -mcpu=cortex-a76+crc+crypto -mtune=cortex-a76 -march=armv8.2-a+crc+crypto+lse+rdm+rcpc+dotprod -Ofast -funroll-loops
+KBUILD_CFLAGS += -Ofast -funroll-loops
+KBUILD_AFLAGS += -Ofast -funroll-loops
 endif
 
 # Tell gcc to never replace conditional load with a non-conditional one
@@ -808,8 +823,10 @@ KBUILD_CFLAGS += $(call cc-option,-fno-delete-null-pointer-checks,)
 # Use make W=1 to enable them (see scripts/Makefile.extrawarn)
 KBUILD_CFLAGS += $(call cc-disable-warning, unused-but-set-variable)
 
+ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
 ifeq ($(ld-name),lld)
 LDFLAGS += -O3 --lto-O3
+endif
 endif
 
 KBUILD_CFLAGS += $(call cc-disable-warning, unused-const-variable)
